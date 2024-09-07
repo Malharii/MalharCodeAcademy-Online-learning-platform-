@@ -1,46 +1,81 @@
+const jwt = require("jsonwebtoken");
+require("dotenv").config();
 const User = require("../models/User");
-const OTP = require("../models/OTP");
-const otpGenerator = require("otp-generator");
-// send OTp
-exports.sendOTP = async (req, res) => {
+
+exports.auth = async (req, res, next) => {
   try {
-    const { email } = req.body;
-    const chekUserPresent = await User.findOne({ email });
-    if (chekUserPresent) {
-      return res.status(401).json({ success: false, message: "User already exist" });
+    const token =
+      req.cookies.token ||
+      req.body.token ||
+      req.header("Authorization").replace("Bearer ", "");
+
+    if (!token) {
+      return res.status(401).json({ success: false, message: "token not found" });
     }
 
-    // generate otp
-    var otp = otpGenerator.generate(6, {
-      upperCaseAlphabets: false,
-      lowerCaseAlphabets: false,
-      specialChars: false,
-    });
-    console.log("opt generated successfully:", otp);
-
-    // cheak unique otp or not
-    let result = await OTP.findOne({ otp: otp });
-
-    while (result) {
-      var otp = otpGenerator.generate(6, {
-        upperCaseAlphabets: false,
-        lowerCaseAlphabets: false,
-        specialChars: false,
-      });
-
-      result = await OTP.findOne({ otp: otp });
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = decoded;
+      next();
+    } catch (err) {
+      return res.status(401).json({ success: false, message: "Invalid token" });
     }
-
-    const otpPayload = {
-      email: email,
-      otp: otp,
-    };
-    const otpBody = new OTP.create(otpPayload);
-    console.log(otpBody);
-
-    res.status(200).json({ success: true, message: "OTP send successfully", otp });
   } catch (error) {
     console.log(error);
-    res.status(500).json({ success: false, message: error });
+    return res.status(401).json({
+      success: false,
+      message: "Something went wrong while validing the  token",
+    });
+  }
+};
+
+exports.isStudent = async (req, res, next) => {
+  try {
+    if (req.user.accountType !== "Student") {
+      return res
+        .status(401)
+        .json({ success: false, message: "This is protected route for students Only" });
+    }
+
+    next();
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "user role can not be found" });
+  }
+};
+
+exports.isInstructor = async (req, res, next) => {
+  try {
+    if (req.user.accountType !== "Instructor") {
+      return res.status(401).json({
+        success: false,
+        message: "This is protected route for Instructors Only",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "user role can not be found" });
+  }
+};
+
+/// isAdmin
+exports.isAdmin = async (req, res, next) => {
+  try {
+    if (req.user.accountType !== "Admin") {
+      return res.status(401).json({
+        success: false,
+        message: "This is protected route for Admin Only",
+      });
+    }
+
+    next();
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ success: false, message: "user role can not be found" });
   }
 };
