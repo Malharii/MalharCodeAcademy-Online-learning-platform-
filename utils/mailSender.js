@@ -10,7 +10,7 @@ const mailSender = async (email, titel, body) => {
       },
     });
     let info = await transporter.sendMail({
-      from: "CodeByMalhar ||CodeByMalhar - Malhar ", // sender address
+      from: "MalharCodeAcademy  - Malhar ", // sender address
       to: `${email}`, // list of receivers
       subject: `${titel}`, // Subject line
 
